@@ -1,0 +1,400 @@
+;Tutushkin Artem 325
+;Преобразование алгебраических выражений
+; Запуск - start без аргументов, далее - ввод выражения
+(defun Input() (coerce (read-line) 'list))
+
+(defun Conv (L) ;char -> Int
+	(cond 
+		((null L) nil)
+		((eq (car L) #\0) (cons 0 (Conv(cdr L))))
+		((eq (car L) #\1) (cons 1 (Conv(cdr L))))
+		((eq (car L) #\2) (cons 2 (Conv(cdr L))))
+		((eq (car L) #\3) (cons 3 (Conv(cdr L))))
+		((eq (car L) #\4) (cons 4 (Conv(cdr L))))
+		((eq (car L) #\5) (cons 5 (Conv(cdr L))))
+		((eq (car L) #\6) (cons 6 (Conv(cdr L))))
+		((eq (car L) #\7) (cons 7 (Conv(cdr L))))
+		((eq (car L) #\8) (cons 8 (Conv(cdr L))))
+		((eq (car L) #\9) (cons 9 (Conv(cdr L))))
+		(T (cons (car L) (Conv(cdr L))))
+	)
+)
+
+(defun RemSp(L) ;remove spaces, * signs
+	(cond
+		((null L)nil)
+		((eql (car L) #\Space) (RemSp (cdr L)))
+		((eql (car L) #\*) (RemSp (cdr L)))
+		(T (cons (car L) (RemSp(cdr L))))
+	)	
+)
+(defun ConvNum (L) ;digits -> numbers
+	(cond
+		((null L) nil)
+		((numberp (car L)) 
+			(cond
+				((numberp (cadr L))  (ConvNum (cons (+ (* 10 (car L)) (cadr L)) (cddr L))))
+				(T (cons (car L) (ConvNum (cdr L))))
+			)
+		)
+		(T (cons (car L) (ConvNum(cdr L))))
+
+	)
+)
+
+(defun Proc (P) (Pro P () 1)) 			;2x3 -> 6x
+(defun Pro (P L N)
+	(cond
+		((null P) (cons N L))		
+		((numberp(car P)) (Pro (cdr P) L (* N (car P))))
+		(T (Pro (cdr P) (append L (list(car P))) N))
+	)	
+)
+
+(defun SetEq (A B) ;equal sets (lists) predicate
+	(cond
+		((null A) (null B))
+ 		((member (car A) B) (SetEq (cdr A) (remove (car A) B :count 1)))
+	)
+)
+
+(defun Simil (L) 
+	(cond
+		((null L) nil)
+		(T (AddSim (car L) (Simil (cddr L))))
+	)
+)
+
+(defun AddSim (P L) (AddSim1 (Proc P) L () (car(Proc P))))
+(defun AddSim1 (P L M N)                  ;P - needed el, L - rest of the list, M - building list, N - sum
+	(cond
+		((null L)
+			(cond
+				((and(= N 1) (not (null (cdr P)))) (cons (cdr P) M))
+				(T (cons (cons N (cdr P)) M))
+			)
+		) 
+		((listp (car L)) (cond
+							((SetEq (cdr P) (cdr(Proc(car L)))) (AddSim1 P (cdr L) M (+ N (car (Proc (car L))))))
+							(T (AddSim1 P (cdr L) (cons #\+ (cons (Proc (car L)) M)) N))
+						 )
+		)
+		(T (AddSim1 P (cdr L) M N))
+	)
+)
+
+(defun MakeLists (L) (MakeLists1 L () #\+))
+(defun MakeLists1 (L P S)   ;S - number sign
+	(cond
+		((null L) (list P))
+		((listp (car L))
+			(cond
+				((null (cdr L)) (list(car L)))
+				(T (cons (car L) (cons S (MakeLists1 (cdr L) P S))))
+			)
+		)
+		((eql (car L) #\+) 
+			(cond
+				((null P) (MakeLists1 (cdr L) () #\+))
+				(T (cons P (cons (car L) (MakeLists1 (cdr L) () #\+))))
+			)
+		)
+;		((eql (car L) #\-)
+;			(cond
+;				((null P) (MakeLists1 (cdr L) () #\-))
+;				(T (cons P (cons #\+ (MakeLists1 (cdr L) () #\-))))
+;			)
+;		)
+;		((eql S #\-) (MakeLists1 (cdr L) (cons -1 (cons (car L) P)) #\+))
+		((eql S #\+) (MakeLists1 (cdr L) (cons (car L) P) S))
+		(T  (cons (car L) (MakeLists1 (cdr L) P S)))
+	)
+)
+
+(defun ConvRem01 (L) ;1*x->x, 0*x -> _
+	(cond
+		((null L) nil)
+		((and (listp (car L)) (numberp (caar L)) (= (caar L) 1) (not (null (cdar L)))(not (null (cadr L)))) (cons (cdar L) (ConvRem01 (cdr L))))
+		((and (listp (car L)) (numberp (caar L)) (= (caar L) 0)) (ConvRem01(cddr L))) 
+		(T (cons (car L) (ConvRem01 (cdr L))))
+	)
+)
+(defun ConvRemPl (L) ;(a+b)+(1-3)+a+b+2(a+1)
+	(cond
+		((null L) nil)
+		((and (null (cdr L)) (eql (car L) #\+)) nil)
+		(T (cons (car L) (ConvRemPl (cdr L))))
+	)
+)
+
+(defun No2Paren (L) ;((x)) -> (x)
+	(cond
+		((null L) nil)
+		((and (listp (car L)) (listp(caar L)) (null (cdar L))) (No2Paren(cons (caar L) (cdr L))))
+		(T (cons (car L) (No2Paren (cdr L))))
+	)
+)
+
+(defun Dec (A M) ; A*(M)
+	(cond 
+		((null M) nil)
+		((or (eql (car M) #\+) (eql (car M) #\-)) (Dec A (cdr M))) 
+		(T (cons (append A (car M)) (Dec A (cdr M)))) 
+	)
+)
+(defun decart (M1 M2) ;(M1)*(M2)
+	(cond 
+		((null M1) nil)
+		((eql (car M1) #\+)  (decart (cdr M1) M2) )
+		(T (append (Dec (car M1) M2) (decart (cdr M1) M2))) 
+	)
+)  
+(defun DecHelp (L) ;((ab)(ac)) -> ((ab) + (ac))
+	(cond
+		((null L) nil)
+		((and(listp (car L)) (listp (cadr L)) (not (null (cadr L)))) (cons (Proc(car L)) (cons #\+ (DecHelp (cdr L)))))
+		(T (cons (Proc(car L)) (DecHelp(cdr L))))
+	)
+)
+(defun MultiplyL (L1 L2) ;(a + (-b))(c+d) -> (ac + ad - bc - bd)
+	(cond
+		((null L1) nil)
+		((null L2) nil)
+		((and(numberp (car L1)) (null(cdr L1))) (MultiplyN (car L1) L2))
+		((and(numberp (car L2)) (null(cdr L2))) (MultiplyN (car L2) L1))
+		((numberp (car L1))  (DecHelp(decart (cdr L1) L2)))
+		((numberp (car L2)) (DecHelp(decart L1 (cdr L2))))
+		((and (numberp (car L1))(numberp (car L2))) (DecHelp(decart (cdr L1) (cdr L2))))
+		(T (DecHelp(decart L1 L2)))
+	)
+)
+(defun MultiplyN (N L) ;number*list
+	(cond
+		((null L) nil)
+		((= N 1) L)
+		((listp (car L)) (cons (Proc (cons N (car L))) (MultiplyN N (cdr L)) ))
+		((numberp (car L)) (cons (* N (car L))  (cdr L)))
+		((and(characterp (car L)) (not (eql #\+ (car L))) (not (numberp (car L)))) (cons N L))
+; 			((not (member #\+ L)) (cons N L))
+		;(T (cons N L))
+		;(T L)
+		(T (cons (car L) (MultiplyN N (cdr L))))
+	)
+)
+(defun Mult (L)
+	(cond
+		((null L) nil)
+		((and (numberp (car L)) (listp (cadr L)) (not(null (cadr L)))) (Mult (cons (MultiplyN (car L) (cadr L))(cddr L))))
+		((and (listp (car L)) (numberp (cadr L)) (not(null (car L))))  (Mult (cons (MultiplyN (cadr L) (car L))(cddr L))))
+		((and (eql (car L) #\-) (listp (cadr L)) (not(null (cadr L)))) (cons #\+ (Mult (cons(MultiplyN -1 (cadr L))(cddr L)))))
+		((and (eql (car L) #\-) (characterp (cadr L))  (not (eql (cadr L) #\+)) (not (eql (cadr L) #\-)))  (Mult (cons #\+ (cons (cons -1 (list (cadr L))) (cddr L)))))	
+;		((and (listp (car L)) (listp (cadr L)) (not(null (cadr L))) (not(null (car L))) (numberp (caar L)) (= (caar L) 0))  (cons (list 0)(Mult (cddr L))))
+;		((and (listp (car L)) (listp (cadr L)) (not(null (cadr L))) (not(null (car L))) (numberp (caadr L)) (= (caadr L) 0))  (cons (list 0)(Mult (cddr L))))
+;		((and (listp (car L)) (listp (cadr L)) (not(null (cadr L))) (not(null (car L))) (numberp (caar L)))  (Mult(cons (MultiplyN (caar L) (cadr L)) (cddr L))))
+		((and (listp (car L)) (listp (cadr L)) (not(null (cadr L))) (not(null (car L))) (numberp (caar L))(numberp (caadr L))) (Mult (cons(cons (* (caar L) (caadr L)) (append (cdar L) (cdadr L)))(cddr L))) )
+		((and (listp (car L)) (listp (cadr L)) (not(null (cadr L))) (not(null (car L))) (numberp (caadr L)))  (Mult(cons (MultiplyN (caadr L) (car L)) (cddr L))))
+		((and (listp (car L)) (listp (cadr L)) (not(null (cadr L))) (not(null (car L)))) (cons (list(Simil(Mult (cons (MultiplyL (car L) (cadr L)) (cddr L))))) (cdr (Mult (cons (MultiplyL (car L) (cadr L)) (cddr L))))))
+		((and (numberp (car L)) (numberp (cadr L)))  (Mult (cons (*(car L)(cadr L))(cddr L)))) 			   ;car
+		((and (characterp (car L)) (listp (cadr L)) (not (null (cadr L)))(not (eql (car L) #\+))  (not (eql (car L) #\-))) (Mult(cons (append (cadr L) (list (car L))) (cddr L)))) ;(Mult (cons (MultiplyL (list(car L)) (cadr L)) (cddr L))))
+		((and (characterp (cadr L)) (listp (car L)) (not (null (car L))) (not (eql (cadr L) #\+))  (not (eql (cadr L) #\-))) (Mult(cons (append (car L) (list (cadr L))) (cddr L))))
+		((and (characterp (car L)) (characterp (cadr L)) (not (eql (cadr L) #\+)) (not (eql (cadr L) #\-))(not (eql (car L) #\+)) (not (eql (car L) #\-))) (Mult (cons(list (car L) (cadr L)) (cddr L))) )
+		((and (numberp (car L))(characterp (cadr L)) (not (eql (cadr L) #\+))  (not (eql (cadr L) #\-)))  (Mult (cons (list (car L) (cadr L)) (cddr L))))
+		((and (numberp (cadr L))(characterp (car L)) (not (eql (car L) #\+))  (not (eql (car L) #\-))) (Mult (cons (list (car L) (cadr L)) (cddr L))))
+		;(Mult (cons (car L) (cons  (list(list (cadr L))) (cddr L))))) ;(Mult (cons (MultiplyL (list(car L)) (cadr L)) (cddr L))))
+		(T (cons (car L) (Mult (cdr L))))
+	)
+)
+(defun KillNil (L) ;(nil) -> (0)
+	(cond
+		((null L) (list 0))
+		(T L)
+	)
+)
+
+(defun ChPar (L)
+	(cond
+		((null L) nil)
+		((eql (car L) #\( ) T)
+		(T (ChPar (cdr L)))
+	)
+)
+(defun Parenthes (L) ;parenthesis -> list
+	(cond
+		((ChPar L) (Parenthes(Parenthesis L)))
+		(T L)
+	)
+)
+(defun Parenthesis (L) (Parenthesis1 L () 2))
+(defun Parenthesis1 (L M Op)
+	(cond
+		((null L) nil)
+		((= Op 2) 
+			(cond
+				((eq (car L) #\( ) (Parenthesis1 (cdr L) (cons (car L) M) 1))
+				(T (cons (car L) (Parenthesis1 (cdr L) M 2)))
+			)
+		)
+		((= Op 1)
+			(cond
+				((eq (car L) #\( ) (append M (Parenthesis1 (cdr L) (cons (car L) ()) 1)) )
+				((eq (car L) #\) ) (cons 
+					(KillNil
+						(Plus
+							(RemMultParen
+								(No2Paren
+									(MakeLists
+										(Mult
+											(No2Paren
+												(ConvNeg
+													(FindPowerOf
+														(KillNil
+															(cdr M) 
+														)
+													) 
+												)
+											)
+										)
+									)
+								)
+							)
+						)
+					)
+					(Parenthesis1 (cdr L) () 2)))
+				(T (Parenthesis1 (cdr L) (append M (list(car L))) 1))    ;( a b c ...
+			)
+		) 
+	)
+)
+
+(defun ConvNeg (L) (ConvNeg1 L nil)) ;Convert negative numbers 
+(defun ConvNeg1 (L P)
+	(cond
+		((null L) nil)
+		((and P (eql (car L) #\-) (numberp (cadr L))) (cons #\+ (cons (-(cadr L)) (ConvNeg1 (cddr L) T))))
+		((and (not P) (eql (car L) #\-) (numberp (cadr L))) (cons (-(cadr L)) (ConvNeg1 (cddr L) T)))
+;		((and P (listp (car L)) (not (null (car L)))) (cons #\+ (cons (MultiplyN -1 (car L)) (ConvNeg1 (cddr L) T))) )
+		(T (cons (car L) (ConvNeg1(cdr L) T)))
+	)
+)
+
+(defun ChMultParen (L) (ChMultParen1 L 1))
+(defun ChMultParen1 (L P)
+	(cond
+		((null L) T)
+		((= P 1) 
+			(cond
+				((listp (car L)) (ChMultParen1 (cdr L) 2))
+				(T nil)
+			)
+		)
+		(T 
+			(cond
+				((eql #\+ (car L)) (ChMultParen1 (cdr L) 1))
+				(T nil)
+			)
+		)
+	)
+)
+(defun RemMultParen(L) ;Remove unnecessary lists
+	(cond
+		((null L) nil)
+		((and (listp (car L))  (ChMultParen (car L))) (append (car L) (RemMultParen (cdr L))))
+		(T (cons (car L) (RemMultParen (cdr L))))
+	)
+)
+
+(defun FindPowerOf (L) ;x^2 -> xx
+	(cond
+		((null L) nil)
+		((and (eql (cadr L) #\^) (numberp (caddr L)))  (cons (PowerOf (car L) (caddr L)) (FindPowerOf (cdddr L))))
+		(T  (cons (car L) (FindPowerOf (cdr L))))
+	)
+)
+(defun PowerOf (L N)
+	(cond
+		((= N 0) 1)
+		((= N 1)
+			(cond 
+				((characterp L) (list(list L)))
+				(T L)
+			)
+		)
+		((numberp L) (* L (PowerOf L (- N 1))))
+		((characterp L) (MultiplyL (list(list L)) (PowerOf L (- N 1))))
+		((listp L) (MultiplyL L (PowerOf L (- N 1))))
+	)
+)
+
+(defun ToString (L)
+	(cond
+		((null L) nil)
+		((listp (car L)) (append (ListToStr (car L)) (ToString (cdr L))))
+		(T (cons (car L) (ToString (cdr L))) )
+	)
+)
+(defun ListToStr (L)
+	(cond
+		((null L) nil)
+		((numberp (car L))
+			(cond
+				((and(= (car L) -1) (characterp (cadr L)) (not (equal (cadr L) #\+))) (cons #\- (OutPow (cadr L) (cddr L))))
+				((not (= (car L) 1)) (append (coerce (write-to-string (car L)) 'list) (OutPow (cadr L) (cddr L))))
+				((and(numberp (car L)) (= (car L) 1) (null (cdr L))) (coerce (write-to-string (car L)) 'list))
+				(T (OutPow (cadr L) (cddr L)))
+			)
+		)
+		(T (OutPow (car L) (cdr L)))	
+	)
+)
+(defun OutPow (L M) (OutPow1 L M M 1))
+(defun OutPow1 (L M MM N)
+	(cond
+		((null MM) 
+			(cond	
+				((null L) nil)
+				(T (list L))
+			)
+		)
+		((null M) 
+			(cond
+				((/= N 1) (append (cons L (cons #\^ (coerce (write-to-string N) 'list))) (OutPow1 (car (remove L MM)) (cdr (remove L MM)) (cdr (remove L MM)) 1)))
+				(T (append (list L)(OutPow1 (car (remove L MM)) (cdr (remove L MM)) (cdr (remove L MM)) 1)))
+			)
+		)
+		((member L M) (OutPow1 L (remove L M :count 1) MM (+ N 1)))
+		(T (OutPow1 L (cdr M) MM N))
+	)
+)
+(defun RemPlMin (L)
+	(cond
+		((null L) nil)
+		((and (eql (car L) #\+) (eql (cadr L) #\-)) (cons #\- (RemPlMin (cddr L))))
+		(T (cons(car L) (RemPlMin (cdr L))))
+	)
+)
+
+(defun Plus (L) (ConvRemPl
+	(ConvRem01
+		(Simil
+			(RemMultParen L)
+			))))
+;(2x-(10-3-2)y)(2x(3-1)x+(3+2)x(7-5)y+25y^2)
+;(x-2(3y-2y+5z-4z-z)+y(7+24-6-24))(x+y) = x^2-y^2							
+;(2xyx-x^2y-yxx)(a^2+b^2) = 0										    
+;(2x(3y-7y+(5-2)3(8+y-6+2y-2-2y))-3a^2b)(10xy+a(5b-4b)3a) = 100x^2y^2-9a^4b^2 
+;(a+b)^2-(a-b)^2
+;(x^2-y^2)(x^2+y^2)
+;(a-b)(a^2+ab+b^2)
+;(x^2-2x+2)(x^2+2x+2)
+
+(defun Output (L)
+	(cond
+		((and (null (cdr L)) (numberp (car L)) (= (car L) 0)) "0")
+		(T(coerce L 'string))
+	)
+)
+(defun Convert (L)
+(KillNil(Plus(RemMultParen(No2Paren(MakeLists(Mult(No2Paren(ConvNeg(FindPowerOf(Parenthes(RemSp(ConvNum(Conv L))))))))))))))
+
+(defun start ()
+(print "Input: " )(Output(RemPlMin(ToString(Convert(KillNil(Input)))))))
